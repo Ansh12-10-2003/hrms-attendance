@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+hrms.db
+.env
+.vscode/
