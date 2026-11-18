@@ -1,6 +1,9 @@
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+
 
 import models
 import schemas
@@ -91,3 +94,9 @@ def attendance_history(employee_id: int, db: Session = Depends(get_db)):
         .order_by(models.Attendance.punch_in.desc())
         .all()
     )
+@app.get("/", include_in_schema=False)
+def home():
+    return FileResponse("static/index.html")
+
+
+app.mount("/static", StaticFiles(directory="static"), name="static")

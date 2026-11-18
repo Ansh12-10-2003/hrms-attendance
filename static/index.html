@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HRMS Attendance</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; }
+    select, button { padding: 8px 12px; font-size: 16px; margin-right: 8px; }
+    button { cursor: pointer; }
+    #message { margin: 16px 0; font-weight: bold; }
+    table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>HRMS Attendance</h1>
+
+  <label>Employee: <select id="employee"></select></label>
+  <div style="margin-top: 16px;">
+    <button id="btnIn">Punch In</button>
+    <button id="btnOut">Punch Out</button>
+  </div>
+  <p id="message"></p>
+
+  <h2>History</h2>
+  <table>
+    <thead><tr><th>Punch In</th><th>Punch Out</th></tr></thead>
+    <tbody id="history"></tbody>
+  </table>
+
+  <script>
+    const employeeSelect = document.getElementById("employee");
+    const message = document.getElementById("message");
+    const historyBody = document.getElementById("history");
+
+    async function api(path, method = "GET") {
+      const res = await fetch(path, { method });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Something went wrong");
+      return data;
+    }
+
+    // Server sends UTC without a "Z" suffix, so add it before converting to local time
+    function fmt(s) {
+      if (!s) return "-";
+      const iso = /Z|[+-]\d\d:\d\d$/.test(s) ? s : s + "Z";
+      return new Date(iso).toLocaleString();
+    }
+
+    function show(text, ok) {
+      message.textContent = text;
+      message.style.color = ok ? "green" : "red";
+    }
+
+    async function loadEmployees() {
+      const employees = await api("/employees");
+      employeeSelect.innerHTML = "";
+      for (const e of employees) {
+        const opt = document.createElement("option");
+        opt.value = e.id;
+        opt.textContent = e.name;
+        employeeSelect.appendChild(opt);
+      }
+      if (employees.length) await loadHistory();
+    }
+
+    async function loadHistory() {
+      const rows = await api("/attendance/" + employeeSelect.value);
+      historyBody.innerHTML = "";
+      for (const r of rows) {
+        const tr = document.createElement("tr");
+        for (const value of [fmt(r.punch_in), fmt(r.punch_out)]) {
+          const td = document.createElement("td");
+          td.textContent = value;
+          tr.appendChild(td);
+        }
+        historyBody.appendChild(tr);
+      }
+    }
+
+    async function punch(kind) {
+      try {
+        await api("/punch-" + kind + "/" + employeeSelect.value, "POST");
+        show("Punched " + kind + " successfully", true);
+        await loadHistory();
+      } catch (err) {
+        show(err.message, false);
+      }
+    }
+
+    document.getElementById("btnIn").onclick = () => punch("in");
+    document.getElementById("btnOut").onclick = () => punch("out");
+    employeeSelect.onchange = loadHistory;
+    loadEmployees();
+  </script>
+</body>
+</html>
